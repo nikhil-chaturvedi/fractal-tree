@@ -28,7 +28,7 @@ public class Main {
 
         frame.setSize(frame.getContentPane().getPreferredSize());
         frame.setVisible(true);
-        //final FPSAnimator animator = new FPSAnimator(glcanvas, 300,true);
-        //animator.start();
+        final FPSAnimator animator = new FPSAnimator(glcanvas, 300,true);
+        animator.start();
     }
 }

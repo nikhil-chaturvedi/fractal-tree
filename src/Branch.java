@@ -12,6 +12,7 @@ public class Branch {
 
     private float startradius;
     private float endradius;
+    private Branch motherBranch;
 
 
     public Branch(float baseX, float baseY, float baseZ, float tipX, float tipY, float tipZ, float startradius, float endradius) {
@@ -23,6 +24,14 @@ public class Branch {
         this.tipZ = tipZ;
         this.startradius = startradius;
         this.endradius = endradius;
+    }
+
+    public void setMotherBranch(Branch motherBranch) {
+        this.motherBranch = motherBranch;
+    }
+
+    public Branch getMotherBranch() {
+        return motherBranch;
     }
 
     public float getBaseX() {

@@ -1,14 +1,22 @@
 import com.jogamp.opengl.GL2;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLEventListener;
+import com.jogamp.opengl.GLProfile;
 import com.jogamp.opengl.fixedfunc.GLLightingFunc;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.glu.GLUquadric;
+import com.jogamp.opengl.util.texture.Texture;
+import com.jogamp.opengl.util.texture.TextureIO;
+import com.jogamp.opengl.util.texture.TextureData;
 import sun.awt.image.ImageWatched;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 
 /**
@@ -19,13 +27,13 @@ public class Tree implements GLEventListener {
     private GLU glu = new GLU();
     private GLUquadric qobj;
 
-    private int growthLevel = 2;
+    private int growthLevel = 9;
 
     private float branchLength = 0.5f;
     private float branchRadius = 0.07f;
 
-    private float leftBranchAngle = 35.0f;
-    private float rightBranchAngle = -35.0f;
+    private float leftBranchAngle = 10.0f;
+    private float rightBranchAngle = -60.0f;
 
     private float leftBranchContraction = 0.9f;
     private float rightBranchContraction = 0.7f;
@@ -39,9 +47,11 @@ public class Tree implements GLEventListener {
     private ArrayList<Branch> next;
     private int treeType = 1;
     private float angle;
+    private Texture treeTexture;
 
 
     private float divergenceAngle = 90;
+    private int divergenceCounter;
 
     public Tree() {
         this.total = new ArrayList<Branch>();
@@ -58,6 +68,7 @@ public class Tree implements GLEventListener {
         this.nonuniflist= new ArrayList<Controller_nonunif>();
         this.treeType = treeType;
         this.angle = 0;
+        this.divergenceCounter = 1;
         if(this.treeType >1) {
             this.unif = new Controller_unif(0,0,-0.015f);
             //this.nonuniflist.add(new Controller_nonunif(-30, 0, -20, -0.05));
@@ -71,7 +82,21 @@ public class Tree implements GLEventListener {
 
     @Override
     public void display(GLAutoDrawable drawable) {
+        System.out.println("hello");
         final GL2 gl = drawable.getGL().getGL2();
+        float[] rgba = {1f, 1f, 1f};
+        //gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, rgba, 0);
+        //gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, rgba, 0);
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, rgba, 0);
+       //gl.glMaterialf(GL2.GL_FRONT, GL2.GL_SHININESS, 0.5f);
+
+        // Apply texture.
+        treeTexture.enable(gl);
+        treeTexture.bind(gl);
+
+        // Draw sphere.
+
+        glu.gluQuadricTexture(qobj, true);
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT );
         gl.glLoadIdentity();
         this.angle += 45;
@@ -82,14 +107,40 @@ public class Tree implements GLEventListener {
 
         gl.glColor3f(1.0f, 1.0f, 1.0f);
 
+
         // gl.glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
         //gl.glRotatef(-this.divergenceAngle, 0.0f, 0.0f, 1.0f);
 
         tree(gl, this.branchLength, this.branchRadius, this.growthLevel);
+        treeTexture.disable(gl);
 
     }
 
-    private void drawBranch(GL2 gl, Branch branch) {
+    public float[] getDivergenceMatrix(Branch branch, GL2 gl) {
+        float[] array = new float[16];
+        gl.glPushMatrix();
+        gl.glLoadIdentity();
+        gl.glTranslatef(branch.getBaseX(), branch.getBaseY(), branch.getBaseZ());
+        float alpha = (float) Math.acos((branch.getBaseZ() - branch.getMotherBranch().getBaseZ()) / Math.sqrt(((branch.getBaseZ() - branch.getMotherBranch().getBaseZ()) * (branch.getBaseZ() - branch.getMotherBranch().getBaseZ()) +
+                (branch.getBaseX() - branch.getMotherBranch().getBaseX()) * (branch.getBaseX() - branch.getMotherBranch().getBaseX()))));
+        float beta = (float) Math.atan((branch.getBaseX() - branch.getMotherBranch().getBaseX()) / Math.sqrt(((branch.getBaseZ() - branch.getMotherBranch().getBaseZ()) * (branch.getBaseZ() - branch.getMotherBranch().getBaseZ()) +
+                (branch.getBaseX() - branch.getMotherBranch().getBaseX()) * (branch.getBaseX() - branch.getMotherBranch().getBaseX()))));
+        gl.glRotatef(-alpha, 1, 0, 0);
+        gl.glRotatef(beta, 0, 1, 0);
+        gl.glRotatef(divergenceAngle, 0, 0, 1);
+        gl.glRotatef(-beta, 0, 1, 0);
+        gl.glRotatef(alpha, 1, 0, 0);
+        gl.glTranslatef(-branch.getBaseX(), -branch.getBaseY(), -branch.getBaseZ());
+        gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, array, 0);
+        gl.glPopMatrix();
+        return array;
+    }
+
+
+
+
+
+    private void drawBranch(GL2 gl, Branch branch, int p) {
         float z_init_x = 0;
         float z_init_y = 0;
         float z_init_z = 1;
@@ -109,12 +160,39 @@ public class Tree implements GLEventListener {
         //gl.glRotatef(-90 , 0 , 0, 1);
         gl.glTranslatef(branch.getBaseX(), branch.getBaseY(), branch.getBaseZ());
         gl.glRotatef((float) (angle * 180.0/Math.PI) ,x,y,z);
-        gl.glRotatef(divergenceAngle ,0,(float) -Math.sin(angle),(float) Math.cos(angle));
 
+//        //more failed code
+//        if(p>2) {
+//            float[] divergenceMatrix = getDivergenceMatrix(branch, gl);
+//            gl.glMultMatrixf(divergenceMatrix, 0);
+//        }
+
+//        if(p > 2) {
+//            //failed divergence angle code based on reflection to find angle around which rotation must occur
+//            float motherdirX = branch.getMotherBranch().getTipX() - branch.getMotherBranch().getBaseX();
+//            float motherdirY = branch.getMotherBranch().getTipY() - branch.getMotherBranch().getBaseY();
+//            float motherdirZ = branch.getMotherBranch().getTipZ() - branch.getMotherBranch().getBaseZ();
+//            float mothermod = (float) Math.sqrt(motherdirX*motherdirX + motherdirY*motherdirY + motherdirZ*motherdirZ);
+//
+//            float dot = motherdirX*z_final_x + motherdirY*z_final_y + motherdirZ*z_final_z;
+//            float reflX = ((2*(motherdirX) * (dot)) / ((mothermod) * (mothermod) )) - z_final_x;
+//            float reflY = ((2*(motherdirY) * (dot)) / ((mothermod) * (mothermod) )) - z_final_y;
+//            float reflZ = ((2*(motherdirZ) * (dot)) / ((mothermod) * (mothermod) )) - z_final_z;
+//
+//            float reflmag = (float) Math.sqrt(reflX*reflX + reflY*reflY + reflZ*reflZ);
+//            reflX = (reflX/reflmag) * mothermod;
+//            reflY = (reflY/reflmag) * mothermod;
+//            reflZ = (reflZ/reflmag) * mothermod;
+//            gl.glRotatef(divergenceAngle * divergenceCounter, reflX, reflY, reflZ);
+//            divergenceCounter++;
+//        }
 
         glu.gluSphere(qobj, branch.getStartradius()*1.005,40,40);
         glu.gluCylinder(qobj, branch.getStartradius(), branch.getEndradius(), branch.getLength(), 40, 40);
-        gl.glTranslatef(-branch.getBaseX(), -branch.getBaseY(), - branch.getBaseZ());
+//        if(p >2 ) {
+//            gl.glRotatef(-divergenceAngle * (divergenceCounter, reflX, reflY, reflZ);
+//        }
+        //.glTranslatef(-branch.getBaseX(), -branch.getBaseY(), - branch.getBaseZ());
 
     }
 
@@ -180,11 +258,14 @@ public class Tree implements GLEventListener {
                     sumMZ += unif.getDz();
                 }
                 Branch b1 = new Branch(b.getTipX(),b.getTipY(),b.getTipZ(), sumLX, sumLY, sumLZ, b.getEndradius(), b.getEndradius() * radiusContraction);
+                b1.setMotherBranch(b);
 
                 Branch b2 = new Branch(b.getTipX(),b.getTipY(),b.getTipZ(), sumRX, sumRY, sumRZ, b.getEndradius(), b.getEndradius() * radiusContraction);
+                b2.setMotherBranch(b);
 
                 if(treeType ==3) {
                     Branch b3 =new Branch(b.getTipX(), b.getTipY(), b.getTipZ(), sumMX, sumMY, sumMZ, b.getEndradius(), b.getEndradius() * radiusContraction);
+                    b3.setMotherBranch(b);
                     total.add(b3);
                     current.add(b3);
                 }
@@ -269,11 +350,12 @@ public class Tree implements GLEventListener {
                     }
 
                     Branch b1 = new Branch(temp.getTipX(), temp.getTipY(), temp.getTipZ(), sumLX, sumLY, sumLZ, temp.getEndradius(), temp.getEndradius() * radiusContraction);
-
+                    b1.setMotherBranch(temp);
                     Branch b2 = new Branch(temp.getTipX(), temp.getTipY(), temp.getTipZ(), sumRX, sumRY, sumRZ, temp.getEndradius(), temp.getEndradius() * radiusContraction);
-
+                    b2.setMotherBranch(temp);
                     if(treeType ==3) {
                         Branch b3 = new Branch(temp.getTipX(), temp.getTipY(), temp.getTipZ(), sumMX, sumMY, sumMZ, temp.getEndradius(), temp.getEndradius() * radiusContraction);
+                        b3.setMotherBranch(temp);
                         next.add(b3);
                         total.add(b3);
                     }
@@ -296,7 +378,7 @@ public class Tree implements GLEventListener {
             gl.glPushMatrix();
                 Branch branch = total.get(p);
             //gl.glRotatef(divergenceAngle, 0, 0, 1);
-                drawBranch(gl,branch);
+                drawBranch(gl,branch,p);
             gl.glPopMatrix();
 
 
@@ -372,6 +454,15 @@ public class Tree implements GLEventListener {
 
         qobj = glu.gluNewQuadric();
         glu.gluQuadricNormals(qobj, GLU.GLU_SMOOTH);
+
+        try{
+
+            File im = new File("tree.jpg");
+            treeTexture = TextureIO.newTexture(im, false);
+
+        }catch(IOException e){
+            e.printStackTrace();
+        }
     }
 
 //    @Override
