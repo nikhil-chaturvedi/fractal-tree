@@ -1,6 +1,7 @@
 import com.jogamp.opengl.GLCapabilities;
 import com.jogamp.opengl.GLProfile;
 import com.jogamp.opengl.awt.GLCanvas;
+import com.jogamp.opengl.util.FPSAnimator;
 
 import javax.swing.*;
 
@@ -14,8 +15,10 @@ public class Main {
 
         final GLCanvas glcanvas = new GLCanvas(capabilities);
 
-        Tree tree = new Tree();
+        Tree tree = new Tree(1);
         glcanvas.addGLEventListener(tree);
+        //glcanvas.addKeyListener(tree);
+
 
         glcanvas.setSize(800, 800);
 
@@ -25,5 +28,7 @@ public class Main {
 
         frame.setSize(frame.getContentPane().getPreferredSize());
         frame.setVisible(true);
+        //final FPSAnimator animator = new FPSAnimator(glcanvas, 300,true);
+        //animator.start();
     }
 }

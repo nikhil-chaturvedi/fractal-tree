@@ -82,11 +82,27 @@ public class Branch {
         if(u==0 && v ==0) {
             return (float) (prevBranch.getTipY() + contractionRatio*(u*Math.cos(angle * Math.PI / 180.0)));
         }
-        return (float) (prevBranch.getTipY() + contractionRatio*(u*Math.cos(angle * Math.PI / 180.0) + s*t*u*Math.sin(angle * Math.PI / 180.0)));
+        return (float) (prevBranch.getTipY() + contractionRatio*(v*Math.cos(angle * Math.PI / 180.0) + s*t*u*Math.sin(angle * Math.PI / 180.0)));
     }
 
     public static float getTipZ(float angle, Branch prevBranch, float contractionRatio) {
         float w = prevBranch.getTipZ() - prevBranch.getBaseZ();
         return (float) (prevBranch.getTipZ() + contractionRatio*w*Math.cos(angle * Math.PI / 180.0));
+    }
+
+    public static float getMidTipZ(Branch prevBranch, float contractionRatio) {
+        float w = prevBranch.getTipZ() - prevBranch. getBaseZ();
+        return  (float) (prevBranch.getTipZ() + contractionRatio*(prevBranch.getTipZ()-prevBranch.getBaseZ()));
+    }
+
+
+    public static float getMidTipX(Branch prevBranch, float contractionRatio) {
+        float w = prevBranch.getTipX() - prevBranch. getBaseX();
+        return  (float) (prevBranch.getTipX() + contractionRatio*(prevBranch.getTipX()-prevBranch.getBaseX()));
+    }
+
+    public static float getMidTipY(Branch prevBranch, float contractionRatio) {
+        float w = prevBranch.getTipY() - prevBranch. getBaseY();
+        return  (float) (prevBranch.getTipY() + contractionRatio*(prevBranch.getTipY()-prevBranch.getBaseY()));
     }
 }

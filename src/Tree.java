@@ -7,16 +7,19 @@ import com.jogamp.opengl.glu.GLUquadric;
 import sun.awt.image.ImageWatched;
 
 import javax.swing.*;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.util.ArrayList;
 
 /**
  * Created by Nikhil on 11/03/17.
  */
+
 public class Tree implements GLEventListener {
     private GLU glu = new GLU();
     private GLUquadric qobj;
 
-    private int growthLevel = 9;
+    private int growthLevel = 2;
 
     private float branchLength = 0.5f;
     private float branchRadius = 0.07f;
@@ -26,6 +29,7 @@ public class Tree implements GLEventListener {
 
     private float leftBranchContraction = 0.9f;
     private float rightBranchContraction = 0.7f;
+    private float middleBranchContraction = 0.9f;
     private float radiusContraction = 0.7f;
     private ArrayList<Controller_nonunif> nonuniflist;
     private Controller_unif unif;
@@ -33,9 +37,11 @@ public class Tree implements GLEventListener {
     private ArrayList<Branch> total;
     private ArrayList<Branch> current;
     private ArrayList<Branch> next;
+    private int treeType = 1;
+    private float angle;
 
 
-    private float divergenceAngle = 140;
+    private float divergenceAngle = 90;
 
     public Tree() {
         this.total = new ArrayList<Branch>();
@@ -43,9 +49,24 @@ public class Tree implements GLEventListener {
         this.next = new ArrayList<Branch>();
         this.nonuniflist= new ArrayList<Controller_nonunif>();
         this.unif = new Controller_unif();
+        this.treeType = 1;
+    }
+    public Tree(int treeType) {
+        this.total = new ArrayList<Branch>();
+        this.current = new ArrayList<Branch>();
+        this.next = new ArrayList<Branch>();
+        this.nonuniflist= new ArrayList<Controller_nonunif>();
+        this.treeType = treeType;
+        this.angle = 0;
+        if(this.treeType >1) {
+            this.unif = new Controller_unif(0,0,-0.015f);
+            //this.nonuniflist.add(new Controller_nonunif(-30, 0, -20, -0.05));
+        }
 
-        //this.nonuniflist.add(new Controller_nonunif(-30,0,-20, -0.05));
+    }
 
+    public void setTreeType(int treeType) {
+        treeType = treeType;
     }
 
     @Override
@@ -53,16 +74,19 @@ public class Tree implements GLEventListener {
         final GL2 gl = drawable.getGL().getGL2();
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT );
         gl.glLoadIdentity();
-        glu.gluLookAt(0.0f, 4.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f);      //FRONT
+        this.angle += 45;
+        glu.gluLookAt(0, 4.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f);      //FRONT
+
         //glu.gluLookAt(0.0f, 0.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);        //TOP
-        //glu.gluLookAt(0.0f, 0.0f, -5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);        //TOP
+        //glu.gluLookAt(-4.0f, 0.0f, 4.0f, 0.0f, 0.0f, 4.0f, 0.0f, 0.0f, 1.0f);        //SIDE
 
         gl.glColor3f(1.0f, 1.0f, 1.0f);
 
-       // gl.glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
+        // gl.glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
         //gl.glRotatef(-this.divergenceAngle, 0.0f, 0.0f, 1.0f);
 
         tree(gl, this.branchLength, this.branchRadius, this.growthLevel);
+
     }
 
     private void drawBranch(GL2 gl, Branch branch) {
@@ -82,10 +106,13 @@ public class Tree implements GLEventListener {
 
         float angle = (float) Math.acos(((z_init_x*z_final_x + z_init_y*z_final_y + z_init_z*z_final_z)/(z_init_mod*z_final_mod)));
 
-
+        //gl.glRotatef(-90 , 0 , 0, 1);
         gl.glTranslatef(branch.getBaseX(), branch.getBaseY(), branch.getBaseZ());
-        glu.gluSphere(qobj, branch.getStartradius()*1.005,40,40);
         gl.glRotatef((float) (angle * 180.0/Math.PI) ,x,y,z);
+        gl.glRotatef(divergenceAngle ,0,(float) -Math.sin(angle),(float) Math.cos(angle));
+
+
+        glu.gluSphere(qobj, branch.getStartradius()*1.005,40,40);
         glu.gluCylinder(qobj, branch.getStartradius(), branch.getEndradius(), branch.getLength(), 40, 40);
         gl.glTranslatef(-branch.getBaseX(), -branch.getBaseY(), - branch.getBaseZ());
 
@@ -117,29 +144,50 @@ public class Tree implements GLEventListener {
                 float sumRY = yRInit;
                 float sumRZ = zRInit;
 
+                float xMInit = Branch.getMidTipX(b, middleBranchContraction);
+                float yMInit = Branch.getMidTipY(b, middleBranchContraction);
+                float zMInit = Branch.getMidTipZ(b, middleBranchContraction);
+                float sumMX = xMInit;
+                float sumMY = yMInit;
+                float sumMZ = zMInit;
+
 
                 for(int k = 0; k<nonuniflist.size(); k++) {
                     sumLX += nonuniflist.get(k).dx(xLInit, yLInit, zLInit);
                     sumRX += nonuniflist.get(k).dx(xRInit, yRInit, zRInit);
-                }
-                for(int k = 0; k<nonuniflist.size(); k++) {
+                    sumMX += nonuniflist.get(k).dx(xRInit, yRInit, zRInit);
+
                     sumLY += nonuniflist.get(k).dy(xLInit, yLInit, zLInit);
                     sumRY += nonuniflist.get(k).dy(xRInit, yRInit, zRInit);
-                }
-                for(int k = 0; k<nonuniflist.size(); k++) {
+                    sumMY += nonuniflist.get(k).dy(xRInit, yRInit, zRInit);
+
                     sumLZ += nonuniflist.get(k).dz(xLInit, yLInit, zLInit);
                     sumRZ += nonuniflist.get(k).dz(xRInit, yRInit, zRInit);
+                    sumMZ += nonuniflist.get(k).dz(xRInit, yRInit, zRInit);
                 }
-                sumLX += unif.getDx();
-                sumLY += unif.getDy();
-                sumLZ += unif.getDz();
 
-                sumRX += unif.getDx();
-                sumRY += unif.getDy();
-                sumRZ += unif.getDz();
+                if(treeType >1 ) {
+                    sumLX += unif.getDx();
+                    sumLY += unif.getDy();
+                    sumLZ += unif.getDz();
+
+                    sumRX += unif.getDx();
+                    sumRY += unif.getDy();
+                    sumRZ += unif.getDz();
+
+                    sumMX += unif.getDx();
+                    sumMY += unif.getDy();
+                    sumMZ += unif.getDz();
+                }
                 Branch b1 = new Branch(b.getTipX(),b.getTipY(),b.getTipZ(), sumLX, sumLY, sumLZ, b.getEndradius(), b.getEndradius() * radiusContraction);
 
                 Branch b2 = new Branch(b.getTipX(),b.getTipY(),b.getTipZ(), sumRX, sumRY, sumRZ, b.getEndradius(), b.getEndradius() * radiusContraction);
+
+                if(treeType ==3) {
+                    Branch b3 =new Branch(b.getTipX(), b.getTipY(), b.getTipZ(), sumMX, sumMY, sumMZ, b.getEndradius(), b.getEndradius() * radiusContraction);
+                    total.add(b3);
+                    current.add(b3);
+                }
                 total.add(b1);
                 total.add(b2);
                 current.add(b1);
@@ -150,45 +198,85 @@ public class Tree implements GLEventListener {
                 for(int p = 0; p< current.size(); p++) {
 
                     Branch temp = current.get(p);
+                    float xLInit = 0;
+                    float yLInit = 0;
+                    float zLInit = 0;
+                    float xRInit = 0;
+                    float yRInit = 0;
+                    float zRInit = 0;
+                    float w = temp.getLength();
 
-                    float xLInit = Branch.getTipX(leftBranchAngle, temp, leftBranchContraction);
-                    float yLInit = Branch.getTipY(leftBranchAngle, temp, leftBranchContraction);
-                    float zLInit = Branch.getTipZ(leftBranchAngle,temp,leftBranchContraction);
+                    if(p==0 && treeType ==3) {
+                        xLInit = (float) (temp.getTipX() + leftBranchContraction * ( 0 - w * Math.sin(leftBranchAngle * Math.PI / 180.0)));
+                        yLInit = temp.getTipY();
+                        zLInit = (float) (temp.getTipZ() + leftBranchContraction * ( 0 + w * Math.cos(leftBranchAngle * Math.PI/ 180.0)));
+                        xRInit = (float) (temp.getTipX() + rightBranchContraction * ( 0 - w * Math.sin(rightBranchAngle * Math.PI / 180.0)));
+                        yRInit = temp.getTipY();
+                        zRInit = (float) (temp.getTipZ() + rightBranchContraction * ( 0 + w * Math.cos(rightBranchAngle * Math.PI/ 180.0)));
+                    }
+                    else {
+                        xLInit = Branch.getTipX(leftBranchAngle, temp, leftBranchContraction);
+                        yLInit = Branch.getTipY(leftBranchAngle, temp, leftBranchContraction);
+                        zLInit = Branch.getTipZ(leftBranchAngle,temp,leftBranchContraction);
+                        xRInit = Branch.getTipX(rightBranchAngle, temp, rightBranchContraction);
+                        yRInit = Branch.getTipY(rightBranchAngle, temp, rightBranchContraction);
+                        zRInit = Branch.getTipZ(rightBranchAngle,temp,rightBranchContraction);
+                    }
+
+
                     float sumLX = xLInit;
                     float sumLY = yLInit;
                     float sumLZ = zLInit;
 
-                    float xRInit = Branch.getTipX(rightBranchAngle, temp, rightBranchContraction);
-                    float yRInit = Branch.getTipY(rightBranchAngle, temp, rightBranchContraction);
-                    float zRInit = Branch.getTipZ(rightBranchAngle,temp,rightBranchContraction);
                     float sumRX = xRInit;
                     float sumRY = yRInit;
                     float sumRZ = zRInit;
-                    
-                    
+
+                    float xMInit = Branch.getMidTipX(temp, middleBranchContraction);
+                    float yMInit = Branch.getMidTipY(temp, middleBranchContraction);
+                    float zMInit = Branch.getMidTipZ(temp, middleBranchContraction);
+                    float sumMX = xMInit;
+                    float sumMY = yMInit;
+                    float sumMZ = zMInit;
+
+
                     for(int k = 0; k<nonuniflist.size(); k++) {
                         sumLX += nonuniflist.get(k).dx(xLInit, yLInit, zLInit);
                         sumRX += nonuniflist.get(k).dx(xRInit, yRInit, zRInit);
-                    }
-                    for(int k = 0; k<nonuniflist.size(); k++) {
+                        sumMX += nonuniflist.get(k).dx(xRInit, yRInit, zRInit);
+
                         sumLY += nonuniflist.get(k).dy(xLInit, yLInit, zLInit);
                         sumRY += nonuniflist.get(k).dy(xRInit, yRInit, zRInit);
-                    }
-                    for(int k = 0; k<nonuniflist.size(); k++) {
+                        sumMY += nonuniflist.get(k).dy(xRInit, yRInit, zRInit);
+
                         sumLZ += nonuniflist.get(k).dz(xLInit, yLInit, zLInit);
                         sumRZ += nonuniflist.get(k).dz(xRInit, yRInit, zRInit);
+                        sumMZ += nonuniflist.get(k).dz(xRInit, yRInit, zRInit);
                     }
-                    sumLX += unif.getDx();
-                    sumLY += unif.getDy();
-                    sumLZ += unif.getDz();
 
-                    sumRX += unif.getDx();
-                    sumRY += unif.getDy();
-                    sumRZ += unif.getDz();
+                    if(treeType >1) {
+                        sumLX += unif.getDx();
+                        sumLY += unif.getDy();
+                        sumLZ += unif.getDz();
+
+                        sumRX += unif.getDx();
+                        sumRY += unif.getDy();
+                        sumRZ += unif.getDz();
+
+                        sumMX += unif.getDx();
+                        sumMY += unif.getDy();
+                        sumMZ += unif.getDz();
+                    }
 
                     Branch b1 = new Branch(temp.getTipX(), temp.getTipY(), temp.getTipZ(), sumLX, sumLY, sumLZ, temp.getEndradius(), temp.getEndradius() * radiusContraction);
 
                     Branch b2 = new Branch(temp.getTipX(), temp.getTipY(), temp.getTipZ(), sumRX, sumRY, sumRZ, temp.getEndradius(), temp.getEndradius() * radiusContraction);
+
+                    if(treeType ==3) {
+                        Branch b3 = new Branch(temp.getTipX(), temp.getTipY(), temp.getTipZ(), sumMX, sumMY, sumMZ, temp.getEndradius(), temp.getEndradius() * radiusContraction);
+                        next.add(b3);
+                        total.add(b3);
+                    }
 
                     next.add(b1);
                     next.add(b2);
@@ -246,6 +334,7 @@ public class Tree implements GLEventListener {
 
     @Override
     public void reshape(GLAutoDrawable drawable, int x, int y, int width, int height) {
+        //System.out.println("Khrea");
         final GL2 gl = drawable.getGL().getGL2();
         if( height <= 0 )
             height = 1;
@@ -284,4 +373,19 @@ public class Tree implements GLEventListener {
         qobj = glu.gluNewQuadric();
         glu.gluQuadricNormals(qobj, GLU.GLU_SMOOTH);
     }
+
+//    @Override
+//    public void keyTyped(KeyEvent e) {
+//
+//    }
+//
+//    @Override
+//    public void keyPressed(KeyEvent e) {
+//
+//    }
+//
+//    @Override
+//    public void keyReleased(KeyEvent e) {
+//
+//    }
 }
