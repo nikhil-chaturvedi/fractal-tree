@@ -1,3 +1,5 @@
+import org.json.JSONArray;
+
 /**
  * Created by karthik.sharma98 on 24-04-2017.
  */
@@ -13,6 +15,13 @@ public class Controller_nonunif {
         this.y = y;
         this.z = z;
         this.factor = factor;
+    }
+
+    public Controller_nonunif(JSONArray nonUnifParams) {
+        this.x = nonUnifParams.getDouble(0);
+        this.y = nonUnifParams.getDouble(1);
+        this.z = nonUnifParams.getDouble(2);
+        this.factor = nonUnifParams.getDouble(3);
     }
 
     public double dx(double xi, double yi, double zi) {

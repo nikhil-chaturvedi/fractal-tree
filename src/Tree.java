@@ -8,6 +8,8 @@ import com.jogamp.opengl.glu.GLUquadric;
 import com.jogamp.opengl.util.texture.Texture;
 import com.jogamp.opengl.util.texture.TextureIO;
 import com.jogamp.opengl.util.texture.TextureData;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import sun.awt.image.ImageWatched;
 
 import javax.swing.*;
@@ -15,9 +17,11 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Scanner;
 
 /**
  * Created by Nikhil on 11/03/17.
@@ -27,18 +31,18 @@ public class Tree implements GLEventListener {
     private GLU glu = new GLU();
     private GLUquadric qobj;
 
-    private int growthLevel = 9;
+    private int growthLevel;
 
-    private float branchLength = 0.5f;
-    private float branchRadius = 0.07f;
+    private float branchLength;
+    private float branchRadius;
 
-    private float leftBranchAngle = 10.0f;
-    private float rightBranchAngle = -60.0f;
+    private float leftBranchAngle;
+    private float rightBranchAngle;
 
-    private float leftBranchContraction = 0.9f;
-    private float rightBranchContraction = 0.7f;
-    private float middleBranchContraction = 0.9f;
-    private float radiusContraction = 0.7f;
+    private float leftBranchContraction;
+    private float rightBranchContraction;
+    private float middleBranchContraction;
+    private float radiusContraction;
     private ArrayList<Controller_nonunif> nonuniflist;
     private Controller_unif unif;
 
@@ -61,7 +65,24 @@ public class Tree implements GLEventListener {
         this.unif = new Controller_unif();
         this.treeType = 1;
     }
-    public Tree(int treeType) {
+    public Tree(String configFileName, int treeType) throws FileNotFoundException {
+        String jsonConfig = new Scanner(new File(configFileName)).useDelimiter("\\Z").next();
+        JSONObject root = new JSONObject(jsonConfig);
+
+        this.growthLevel = root.getInt("growth_level");
+
+        this.branchLength = (float)root.getDouble("branch_length");
+        this.branchRadius = (float)root.getDouble("branch_radius");
+
+        this.leftBranchAngle = (float)root.getDouble("left_branch_angle");
+        this.rightBranchAngle = (float)root.getDouble("right_branch_angle");
+
+        this.leftBranchContraction = (float)root.getDouble("left_branch_contraction");
+        this.rightBranchContraction = (float)root.getDouble("right_branch_contraction");
+        this.middleBranchContraction = (float)root.getDouble("middle_branch_contraction");
+        this.radiusContraction = (float)root.getDouble("radius_contraction");
+
+
         this.total = new ArrayList<Branch>();
         this.current = new ArrayList<Branch>();
         this.next = new ArrayList<Branch>();
@@ -69,9 +90,15 @@ public class Tree implements GLEventListener {
         this.treeType = treeType;
         this.angle = 0;
         this.divergenceCounter = 1;
-        if(this.treeType >1) {
-            this.unif = new Controller_unif(0,0,-0.015f);
+        if(this.treeType > 1) {
+            this.unif = new Controller_unif(root.getJSONArray("unif_controller"));
             //this.nonuniflist.add(new Controller_nonunif(-30, 0, -20, -0.05));
+        }
+        if(this.treeType > 2) {
+            JSONArray nonUnifArray = root.getJSONArray("non_unif_controllers");
+            for(int i = 0; i < nonUnifArray.length(); i++) {
+                this.nonuniflist.add(new Controller_nonunif(nonUnifArray.getJSONArray(i)));
+            }
         }
 
     }
@@ -84,6 +111,8 @@ public class Tree implements GLEventListener {
     public void display(GLAutoDrawable drawable) {
         System.out.println("hello");
         final GL2 gl = drawable.getGL().getGL2();
+        gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT );
+        gl.glLoadIdentity();
         float[] rgba = {1f, 1f, 1f};
         //gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, rgba, 0);
         //gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, rgba, 0);
@@ -97,8 +126,7 @@ public class Tree implements GLEventListener {
         // Draw sphere.
 
         glu.gluQuadricTexture(qobj, true);
-        gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT );
-        gl.glLoadIdentity();
+
         this.angle += 45;
         glu.gluLookAt(0, 4.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f);      //FRONT
 
@@ -374,7 +402,7 @@ public class Tree implements GLEventListener {
 
         //now render the tree - done incorrectly
         for(int p =0; p < total.size(); p++) {
-
+            //System.out.println("heyyyy");
             gl.glPushMatrix();
                 Branch branch = total.get(p);
             //gl.glRotatef(divergenceAngle, 0, 0, 1);
